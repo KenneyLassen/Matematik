@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Matematikspil</title>
+  <style>
+    /* Generelle stilarter */
+    body {
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(135deg, #74ABE2, #5563DE);
+      color: #333;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      margin: 20px 0;
+      color: #fff;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    .container {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      max-width: 800px;
+      width: 90%;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      margin-bottom: 20px;
+      position: relative;
+      z-index: 1;
+    }
+    .hidden {
+      display: none;
+    }
+    button {
+      margin: 10px 0;
+      padding: 10px 20px;
+      font-size: 1em;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      background-color: #5563DE;
+      color: #fff;
+      transition: background-color 0.3s, transform 0.3s;
+    }
+    button:hover {
+      background-color: #3e4bb8;
+      transform: scale(1.05);
+    }
+    input[type="number"] {
+      padding: 10px;
+      font-size: 1em;
+      width: calc(100% - 22px);
+      margin-top: 10px;
+      border: 2px solid #ccc;
+      border-radius: 5px;
+    }
+    select, input[type="checkbox"] {
+      margin: 5px 0;
+    }
+    canvas {
+      border: 2px solid #ccc;
+      border-radius: 5px;
+      touch-action: none;
+      /* Standard størrelse - den opdateres via JS */
+      width: 100%;
+      height: auto;
+      margin: 10px 0;
+    }
+    /* Specifik styling for ryd-knappen */
+    #clearCanvas {
+      display: block;
+      margin: 10px 0 10px 0;
+      margin-left: 0;
+      width: auto;
+    }
+    #feedback {
+      margin-top: 10px;
+      font-weight: bold;
+      min-height: 24px;
+      text-align: center;
+    }
+    /* Animation ved korrekt svar */
+    .correct {
+      color: #2e7d32;
+      animation: correctAnim 1s ease;
+    }
+    @keyframes correctAnim {
+      0% { transform: scale(0.8); opacity: 0; }
+      50% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(1); opacity: 0; }
+    }
+    /* Shake-animation ved forkert svar */
+    .shake {
+      animation: shake 0.5s;
+    }
+    @keyframes shake {
+      0% { transform: translateX(0); }
+      20% { transform: translateX(-10px); }
+      40% { transform: translateX(10px); }
+      60% { transform: translateX(-10px); }
+      80% { transform: translateX(10px); }
+      100% { transform: translateX(0); }
+    }
+    /* Pop-up styling */
+    #popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255, 255, 255, 0.9);
+      border: 2px solid #5563DE;
+      border-radius: 10px;
+      padding: 20px 40px;
+      font-size: 2em;
+      text-align: center;
+      z-index: 1000;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Matematikspil</h1>
+  
+  <!-- Pop-up med glad smiley -->
+  <div id="popup">😄</div>
+  
+  <!-- Indstillingsside -->
+  <div class="container" id="settings">
+    <h2>Indstillinger</h2>
+    <p>Vælg operationer:</p>
+    <label><input type="checkbox" id="addition" checked> Plus (+)</label><br>
+    <label><input type="checkbox" id="subtraction" checked> Minus (-)</label><br>
+    <label><input type="checkbox" id="multiplication" checked> Gange (×)</label><br>
+    <label><input type="checkbox" id="division" checked> Divider (÷)</label><br>
+    
+    <p>Vælg antal cifre:</p>
+    <select id="digitCount">
+      <option value="1">1 ciffer</option>
+      <option value="2" selected>2 cifre</option>
+      <option value="3">3 cifre</option>
+      <option value="4">4 cifre</option>
+    </select>
+    
+    <!-- Nye indstillinger for tegneområdets størrelse -->
+    <p>Vælg tegneområdets størrelse:</p>
+    <label for="canvasWidth">Bredde (px): </label>
+    <input type="number" id="canvasWidth" value="400" min="100" max="800"><br>
+    <label for="canvasHeight">Højde (px): </label>
+    <input type="number" id="canvasHeight" value="200" min="100" max="600">
+    
+    <br>
+    <button id="startButton">Start spil</button>
+  </div>
+  
+  <!-- Spilområde -->
+  <div class="container hidden" id="game">
+    <h2>Points: <span id="points">0</span></h2>
+    <div id="problem" style="font-size: 1.5em; margin-bottom: 10px;"></div>
+    
+    <p>Tegneområde: Brug fingeren til at lave dine beregninger</p>
+    <canvas id="scratchpad"></canvas>
+    <!-- Ryd-knappen placeres til venstre under tegneområdet -->
+    <button id="clearCanvas">Ryd tegneområde</button>
+    
+    <input type="number" id="answerInput" placeholder="Skriv dit svar her">
+    <button id="submitAnswer">Tjek svar</button>
+    <div id="feedback"></div>
+    
+    <button id="endGame">Slut spillet</button>
+  </div>
+  
+  <script>
+    // Hent elementer fra DOM'en
+    const settingsDiv = document.getElementById('settings');
+    const gameDiv = document.getElementById('game');
+    const startButton = document.getElementById('startButton');
+    const pointsDisplay = document.getElementById('points');
+    const problemDiv = document.getElementById('problem');
+    const answerInput = document.getElementById('answerInput');
+    const submitAnswer = document.getElementById('submitAnswer');
+    const feedbackDiv = document.getElementById('feedback');
+    const canvas = document.getElementById('scratchpad');
+    const clearCanvasButton = document.getElementById('clearCanvas');
+    const endGameButton = document.getElementById('endGame');
+    const ctx = canvas.getContext('2d');
+    const popupDiv = document.getElementById('popup');
+    
+    let currentProblem = {};
+    let points = 0;
+    let drawing = false;
+    
+    // Funktion til at vise pop-up med en tilfældig glad smiley
+    function showPopup(duration = 1000) {
+      const smileys = ["😄", "😊", "😁", "😃", "🙂"];
+      const randomSmiley = smileys[Math.floor(Math.random() * smileys.length)];
+      popupDiv.textContent = randomSmiley;
+      popupDiv.style.display = 'block';
+      setTimeout(() => {
+        popupDiv.style.display = 'none';
+      }, duration);
+    }
+    
+    // Funktion til at opdatere størrelsen på canvas ud fra indstillingerne
+    function updateCanvasSize() {
+      const canvasWidth = parseInt(document.getElementById('canvasWidth').value, 10);
+      const canvasHeight = parseInt(document.getElementById('canvasHeight').value, 10);
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+    }
+    
+    // Generer et tilfældigt tal med ønsket antal cifre
+    function generateNumber(digits) {
+      const min = Math.pow(10, digits - 1);
+      const max = Math.pow(10, digits) - 1;
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+    
+    // Beregn svaret for et problem
+    function calculateAnswer(a, b, op) {
+      switch(op) {
+        case '+': return a + b;
+        case '-': return a - b;
+        case '*': return a * b;
+        case '/': return a / b;
+      }
+    }
+    
+    // Generer et nyt problem baseret på indstillingerne
+    function generateProblem() {
+      const selectedOperations = [];
+      if(document.getElementById('addition').checked) selectedOperations.push('+');
+      if(document.getElementById('subtraction').checked) selectedOperations.push('-');
+      if(document.getElementById('multiplication').checked) selectedOperations.push('*');
+      if(document.getElementById('division').checked) selectedOperations.push('/');
+      
+      if (selectedOperations.length === 0) {
+        alert("Vælg mindst én operation!");
+        return;
+      }
+      
+      const digits = parseInt(document.getElementById('digitCount').value, 10);
+      const operation = selectedOperations[Math.floor(Math.random() * selectedOperations.length)];
+      
+      let num1 = generateNumber(digits);
+      let num2 = generateNumber(digits);
+      
+      // Sikr, at division giver et helt tal
+      if(operation === '/') {
+        while(num2 === 0) {
+          num2 = generateNumber(digits);
+        }
+        const result = generateNumber(digits);
+        num1 = num2 * result;
+      }
+      
+      // Sikr, at minus ikke bliver negativt
+      if(operation === '-' && num1 < num2) {
+        [num1, num2] = [num2, num1];
+      }
+      
+      currentProblem = {
+        num1: num1,
+        num2: num2,
+        operation: operation,
+        answer: calculateAnswer(num1, num2, operation)
+      };
+      
+      displayProblem();
+    }
+    
+    // Vis det aktuelle problem
+    function displayProblem() {
+      let opSymbol = currentProblem.operation;
+      if(opSymbol === '*') opSymbol = '×';
+      if(opSymbol === '/') opSymbol = '÷';
+      problemDiv.textContent = currentProblem.num1 + " " + opSymbol + " " + currentProblem.num2 + " = ?";
+      answerInput.value = "";
+      feedbackDiv.textContent = "";
+      answerInput.focus();
+      clearCanvas();
+    }
+    
+    // Start spillet: Opdater canvas størrelse og skift til spilområdet
+    startButton.addEventListener('click', function() {
+      points = 0;
+      pointsDisplay.textContent = points;
+      // Opdater størrelsen på tegneområdet
+      updateCanvasSize();
+      settingsDiv.classList.add('hidden');
+      gameDiv.classList.remove('hidden');
+      generateProblem();
+    });
+    
+    // Tjek brugerens svar med visuelle effekter og pop-up ved korrekt svar
+    submitAnswer.addEventListener('click', function() {
+      const userAnswer = parseFloat(answerInput.value);
+      if (isNaN(userAnswer)) {
+        feedbackDiv.textContent = "Indtast venligst et tal.";
+        return;
+      }
+      
+      if (Math.abs(userAnswer - currentProblem.answer) < 0.0001) {
+        feedbackDiv.textContent = "Korrekt! Fantastisk!";
+        feedbackDiv.classList.add('correct');
+        showPopup(1000);
+        setTimeout(() => feedbackDiv.classList.remove('correct'), 1000);
+        points++;
+        pointsDisplay.textContent = points;
+        setTimeout(generateProblem, 1200);
+      } else {
+        feedbackDiv.textContent = "Forkert! Prøv igen, du kan bedre!";
+        answerInput.classList.add('shake');
+        setTimeout(() => answerInput.classList.remove('shake'), 500);
+      }
+    });
+    
+    answerInput.addEventListener('keyup', function(event) {
+      if (event.key === 'Enter') {
+        submitAnswer.click();
+      }
+    });
+    
+    // Tegnefunktionalitet på canvas med pointer events
+    canvas.addEventListener('pointerdown', function(e) {
+      drawing = true;
+      ctx.beginPath();
+      const rect = canvas.getBoundingClientRect();
+      ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    });
+    
+    canvas.addEventListener('pointermove', function(e) {
+      if (!drawing) return;
+      const rect = canvas.getBoundingClientRect();
+      ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+      ctx.stroke();
+    });
+    
+    canvas.addEventListener('pointerup', function() {
+      drawing = false;
+    });
+    canvas.addEventListener('pointerleave', function() {
+      drawing = false;
+    });
+    
+    // Ryd tegneområdet
+    function clearCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    
+    clearCanvasButton.addEventListener('click', clearCanvas);
+    
+    // Slut spillet: Gå tilbage til indstillingssiden
+    endGameButton.addEventListener('click', function() {
+      settingsDiv.classList.remove('hidden');
+      gameDiv.classList.add('hidden');
+    });
+  </script>
+</body>
+</html>
