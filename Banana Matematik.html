@@ -65,10 +65,8 @@
       border: 2px solid #ccc;
       border-radius: 5px;
       touch-action: none;
-      /* Standard størrelse - den opdateres via JS */
-      width: 100%;
-      height: auto;
       margin: 10px 0;
+      /* Vi fjerner de faste CSS-dimensioner, da de nu styres via JS */
     }
     /* Specifik styling for ryd-knappen */
     #clearCanvas {
@@ -211,6 +209,9 @@
       const canvasHeight = parseInt(document.getElementById('canvasHeight').value, 10);
       canvas.width = canvasWidth;
       canvas.height = canvasHeight;
+      // Sørg for, at den visuelle størrelse matcher de interne dimensioner:
+      canvas.style.width = canvasWidth + "px";
+      canvas.style.height = canvasHeight + "px";
     }
     
     // Generer et tilfældigt tal med ønsket antal cifre
@@ -307,7 +308,7 @@
       if (Math.abs(userAnswer - currentProblem.answer) < 0.0001) {
         feedbackDiv.textContent = "Korrekt! Fantastisk!";
         feedbackDiv.classList.add('correct');
-        showPopup(1000);
+        showPopup(1000); // Varigheden kan ændres her (fx 1500 for 1,5 sekunder)
         setTimeout(() => feedbackDiv.classList.remove('correct'), 1000);
         points++;
         pointsDisplay.textContent = points;
