@@ -45,7 +45,7 @@
         width = Math.floor(Math.random() * 11) + 2;
         document.getElementById("question").innerText = `Beregn arealet af en rektangel med længde ${length} og bredde ${width}.`;
 
-        const scale = Math.min(160 / length, 160 / width);
+        const scale = Math.min(260 / length, 260 / width);
         const rectWidth = length * scale;
         const rectHeight = width * scale;
         const x = (canvas.width - rectWidth) / 2;
@@ -66,7 +66,7 @@
         height = Math.floor(Math.random() * 11) + 2;
         document.getElementById("question").innerText = `Beregn arealet af en trekant med grundlinje ${base} og højde ${height}.`;
 
-        const scale = Math.min(160 / base, 160 / height);
+        const scale = Math.min(260 / base, 260 / height);
         const b = base * scale;
         const h = height * scale;
         const x = (canvas.width - b) / 2;
