@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <title>Geometri-jagten: Areal</title>
+  </head>
+<body>
+  <h1>Geometri-jagten</h1>
+  <div class="card">
+    <div>
+      <label for="shape">Vælg figur:</label>
+      <select id="shape" onchange="generateQuestion()">
+        <option value="rectangle">Rektangel</option>
+        <option value="triangle">Trekant</option>
+      </select>
+    </div>
+    <div id="question"></div>
+    <canvas id="rectangle" width="200" height="200"></canvas>
+    <input type="number" id="answer" />
+    <button onclick="checkAnswer()">Tjek svar</button>
+    <div class="feedback" id="feedback"></div>
+    <div class="score" id="score"></div>
+    <button onclick="generateQuestion()">Ny opgave</button>
+  </div>
+
+  <script>
+    let length, width, base, height;
+    let score = 0;
+    let currentShape = "rectangle";
+
+    function generateQuestion() {
+      const shape = document.getElementById("shape").value;
+      currentShape = shape;
+      const canvas = document.getElementById("rectangle");
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      document.getElementById("answer").value = "";
+      document.getElementById("feedback").innerText = "";
+
+      if (shape === "rectangle") {
+        length = Math.floor(Math.random() * 11) + 2;
+        width = Math.floor(Math.random() * 11) + 2;
+        document.getElementById("question").innerText = `Beregn arealet af en rektangel med længde ${length} og bredde ${width}.`;
+
+        const scale = Math.min(160 / length, 160 / width);
+        const rectWidth = length * scale;
+        const rectHeight = width * scale;
+        const x = (canvas.width - rectWidth) / 2;
+        const y = (canvas.height - rectHeight) / 2;
+
+        ctx.fillStyle = "#4db6ac";
+        ctx.fillRect(x, y, rectWidth, rectHeight);
+        ctx.strokeStyle = "#000";
+        ctx.strokeRect(x, y, rectWidth, rectHeight);
+        ctx.fillStyle = "#000";
+        ctx.font = "14px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(`${length}`, x + rectWidth / 2, y - 8);
+        ctx.fillText(`${width}`, x - 10, y + rectHeight / 2);
+
+      } else if (shape === "triangle") {
+        base = Math.floor(Math.random() * 11) + 2;
+        height = Math.floor(Math.random() * 11) + 2;
+        document.getElementById("question").innerText = `Beregn arealet af en trekant med grundlinje ${base} og højde ${height}.`;
+
+        const scale = Math.min(160 / base, 160 / height);
+        const b = base * scale;
+        const h = height * scale;
+        const x = (canvas.width - b) / 2;
+        const y = (canvas.height + h) / 2;
+
+        const topX = x + b / 2;
+        const topY = y - h;
+
+        ctx.fillStyle = "#f48fb1";
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + b, y);
+        ctx.lineTo(topX, topY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Højde-streg indeni trekanten (stiplet)
+        ctx.strokeStyle = "#000";
+        ctx.setLineDash([5, 3]);
+        ctx.beginPath();
+        ctx.moveTo(topX, topY);
+        ctx.lineTo(topX, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Mål
+        ctx.fillStyle = "#000";
+        ctx.font = "14px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(`${base}`, x + b / 2, y + 15);
+        ctx.fillText(`${height}`, topX + 20, topY + h * 0.75);
+      }
+    }
+
+    function checkAnswer() {
+      const userAnswer = parseFloat(document.getElementById("answer").value);
+      let correctAnswer = 0;
+
+      if (currentShape === "rectangle") {
+        correctAnswer = length * width;
+      } else if (currentShape === "triangle") {
+        correctAnswer = 0.5 * base * height;
+      }
+
+      const roundedAnswer = Math.round(correctAnswer * 100) / 100;
+
+      if (Math.abs(userAnswer - roundedAnswer) < 0.01) {
+        document.getElementById("feedback").innerText = "✔️ Korrekt!";
+        score++;
+      } else {
+        document.getElementById("feedback").innerText = `❌ Forkert. Det rigtige svar er ca. ${roundedAnswer}`;
+        score = 0;
+      }
+
+      document.getElementById("score").innerText = `Streak: ${score}`;
+    }
+
+    generateQuestion();
+  </script>
+</body>
+</html>
