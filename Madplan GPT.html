@@ -6,8 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body { font-family: Arial, sans-serif; margin: 0; background: #f7fafb; color: #21242b;}
-    h1, h2 { background: #5278b1; color: #fff; margin: 0; padding: 20px 10px 10px 10px; }
-    h2 { background: #3a5e8c; margin-top: 20px; }
+    h1 { background: #5278b1; color: #fff; margin: 0; padding: 20px 10px 10px 10px; }
     .container { max-width: 900px; margin: auto; padding: 10px 10px 40px 10px; }
     form { background: #fff; border-radius: 12px; box-shadow: 0 4px 22px #0001; padding: 32px 24px 20px 24px; margin-bottom: 24px; }
     label { display: block; margin-top: 17px; margin-bottom: 4px; font-weight: bold; font-size: 1.05em;}
@@ -28,14 +27,14 @@
     #apikey { font-size: 1.04em; letter-spacing: 1px;}
     #loading { display: none; color: #345; font-size: 1.08em; margin-top: 14px;}
 
-    .md-section {background:#f6f9fc;border-radius:9px;padding:20px 20px 16px 20px;margin:18px 0;}
-    .md-section h2, .md-section h3 {background:none;color:#5278b1;margin:18px 0 5px 0; padding:0;}
-    .md-section ul, .md-section ol {margin:0 0 12px 20px;}
-    .md-section table { width: 100%; border-collapse: collapse; margin: 18px 0 20px 0; font-size: 1rem;}
-    .md-section th, .md-section td { border: 1px solid #cfddeb; padding: 10px 10px; text-align: left;}
+    .md-section {background:#f6f9fc;border-radius:9px;padding:18px 18px 6px 18px;margin:18px 0;}
+    .md-section h2, .md-section h3 {background:none;color:#5278b1;margin:12px 0 3px 0; padding:0;}
+    .md-section ul, .md-section ol {margin:0 0 7px 20px;}
+    .md-section li {margin:0 0 2px 0;}
+    .md-section table { width: 100%; border-collapse: collapse; margin: 14px 0 12px 0; font-size: 1rem;}
+    .md-section th, .md-section td { border: 1px solid #cfddeb; padding: 8px 8px; text-align: left;}
     .md-section th { background: #d9e6f5; }
     .md-section tr:nth-child(even) { background: #f4f7fa; }
-    .md-section b { color: #385; }
     .md-section code { background: #eef1fa; color: #394; padding: 2px 5px; border-radius: 5px; }
     .md-section .tooltip {
       display: inline-block; border-bottom: 1px dotted #888; cursor: pointer; color: #376;
@@ -64,11 +63,37 @@
       opacity: 0;
       transition: opacity 0.2s;
     }
+    /* Collapsible fold-ud/ind */
+    .collapsible {
+      background: #d9e6f5;
+      color: #23456d;
+      cursor: pointer;
+      padding: 13px 16px;
+      width: 100%;
+      border: none;
+      border-radius: 7px;
+      text-align: left;
+      outline: none;
+      font-size: 1.09em;
+      font-weight: bold;
+      margin-bottom: 8px;
+      margin-top: 7px;
+      transition: background 0.18s;
+    }
+    .collapsible:hover { background: #c6daee; }
+    .content {
+      padding: 2px 12px 14px 2px;
+      display: none;
+      overflow: hidden;
+      border-radius: 0 0 7px 7px;
+      background: #f9fbfc;
+    }
     @media (max-width: 700px) {
       .container { padding: 4px; }
       form { padding: 12px 4vw; }
-      .md-section { padding:10px; }
+      .md-section { padding:8px; }
       .md-section .tooltiptext { width:90vw; left:0; transform:none;}
+      .collapsible {padding:10px;}
     }
   </style>
 </head>
@@ -158,24 +183,25 @@ Skriv *aldrig* en “Forklaring på dagspriser” under tabellen. Forklaring må
 
 ### Indkøbsliste
 #### Kød
-- ...
+- Frikadellefars, 500 g
 #### Mejeri
-- ...
+- Mælk, 1 liter
 #### Kolonial
-- ...
+- Ris, 1 pose
 #### Grønt
-- ...
+- Kartofler, 2 kg
 #### Øvrigt
-- ...
+- Olie, 1 flaske
 
 Brug aldrig stjerner, markdown-bold eller andre tegn i indkøbslisten. Kun bindestreger.
 
 ### Opskrifter
 #### Mandag: [Ret]
 Ingredienser:
-- ...
+- Frikadellefars, 500 g
+- Kartofler, 1 kg
 Fremgangsmåde:
-1. ...
+1. Bland fars...
 #### Tirsdag: [Ret]
 Ingredienser:
 - ...
@@ -225,6 +251,7 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
         document.getElementById('loading').style.display = "none";
 
         document.getElementById('result').innerHTML = formatMadplanOutput(svar);
+        setupCollapsible();
         window.scrollTo({ top: document.getElementById('result').offsetTop-60, behavior: 'smooth'});
       } catch (err) {
         document.getElementById('loading').style.display = "none";
@@ -290,7 +317,7 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
     }
 
     function formatMadplanOutput(text) {
-      // Robust section extraction (tillader alle overskriftsniveauer + linjer alene med sektionstitel)
+      // Helper to find all section content, even with variant headings
       function findSection(name) {
         let reg = new RegExp(`(^|\\n)\\s{0,3}#{0,3}\\s*${name}\\s*:?(\\n|$)`, 'i');
         let start = text.search(reg);
@@ -308,7 +335,7 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
         return text.substring(start, next).replace(reg, "");
       }
 
-      // Find tabel
+      // MADPLAN
       let madplan = findSection("Madplan");
       let madplanHtml = "";
       if (madplan) {
@@ -331,23 +358,66 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
             tableText = lines.join("\n");
           }
         }
-        madplanHtml = tableText ? `<div class="md-section">${markdownToHtml(tableText)}</div>` : "";
+        madplanHtml = tableText ? `<div class="md-section"><h2>Madplan</h2>${markdownToHtml(tableText)}</div>` : "";
+      } else {
+        madplanHtml = `<div class="md-section"><h2>Madplan</h2><i>Madplan mangler</i></div>`;
       }
-      const sections = ['Indkøbsliste', 'Opskrifter', 'Madpakker'];
+
+      // INDKØBSLISTE og OPSKRIFTER med fold-ud
+      function wrapCollapsible(title, html, open=false) {
+        return `<button class="collapsible"${open?' style="margin-top:16px;"':''}>${title}</button>
+          <div class="content"${open?' style="display:block"':''}>${html}</div>`;
+      }
+      const sections = [
+        {navn: 'Indkøbsliste', title: 'Indkøbsliste'},
+        {navn: 'Opskrifter', title: 'Opskrifter'},
+        {navn: 'Madpakker', title: 'Madpakker'}
+      ];
       let output = madplanHtml;
-      sections.forEach(section => {
-        let sectionText = findSection(section);
-        if (sectionText && sectionText.trim().length > 0) {
-          let cleaned = sectionText
-            .replace(/^#+$/gm, "")
-            .replace(/^\d+\..+/gm, "")
-            .replace(/^\s*$/gm, "");
-          output += `<div class="md-section">${markdownToHtml(cleaned.trim())}</div>`;
+      sections.forEach((section, idx) => {
+        let sectionText = findSection(section.navn);
+        let sectionTitle = `<h2>${section.title}</h2>`;
+        if (section.navn === 'Madpakker') {
+          // Madpakker vises altid foldet ud, ingen knap
+          if (sectionText && sectionText.trim().length > 0) {
+            output += `<div class="md-section">${sectionTitle}${markdownToHtml(sectionText.trim())}</div>`;
+          } else {
+            output += `<div class="md-section">${sectionTitle}<i>Madpakker mangler i AI-svar – prøv igen</i></div>`;
+          }
         } else {
-          output += `<div class="md-section"><i>${section} mangler i AI-svar – prøv at trykke "Generér madplan" igen</i></div>`;
+          // Fold-ud/ind
+          if (sectionText && sectionText.trim().length > 0) {
+            let html = markdownToHtml(sectionText.trim());
+            // Hvis ingen mængder eller fremgangsmåde
+            if (section.navn === 'Indkøbsliste' && !/\d/.test(sectionText)) {
+              html = `<i>Ingen mængder fundet – prompt evt. GPT tydeligere om mængder</i><br>` + html;
+            }
+            if (section.navn === 'Opskrifter' && !/Fremgangsmåde/i.test(sectionText)) {
+              html = `<i>Fremgangsmåde mangler – prompt evt. GPT tydeligere</i><br>` + html;
+            }
+            output += `<div class="md-section">${wrapCollapsible(sectionTitle, html, false)}</div>`;
+          } else {
+            output += `<div class="md-section">${wrapCollapsible(sectionTitle, '<i>Sektionen mangler i AI-svar – prøv igen</i>', false)}</div>`;
+          }
         }
       });
       return output;
+    }
+
+    // Fold-ud/ind-funktion
+    function setupCollapsible() {
+      var coll = document.getElementsByClassName("collapsible");
+      for (let i = 0; i < coll.length; i++) {
+        coll[i].onclick = function() {
+          this.classList.toggle("active");
+          var content = this.nextElementSibling;
+          if (content.style.display === "block") {
+            content.style.display = "none";
+          } else {
+            content.style.display = "block";
+          }
+        };
+      }
     }
   </script>
 </body>
