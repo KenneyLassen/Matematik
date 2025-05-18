@@ -16,7 +16,6 @@
       border: 1px solid #b5c6e0; border-radius: 7px; background: #f5f9ff;
     }
     textarea { min-height: 50px; resize: vertical; }
-    input[type="number"]::-webkit-inner-spin-button { margin: 0; }
     button {
       background: #5278b1; color: #fff; font-size: 1.13em; font-weight: bold;
       border: none; border-radius: 8px; padding: 12px 0; margin-top: 25px; width: 100%;
@@ -34,7 +33,7 @@
     .md-section h2, .md-section h3 {background:none;color:#5278b1;margin:18px 0 5px 0; padding:0;}
     .md-section ul, .md-section ol {margin:0 0 12px 20px;}
     .md-section table { width: 100%; border-collapse: collapse; margin: 18px 0 20px 0; font-size: 1rem;}
-    .md-section th, .md-section td { border: 1px solid #cfddeb; padding: 7px 8px; text-align: left;}
+    .md-section th, .md-section td { border: 1px solid #cfddeb; padding: 10px 10px; text-align: left;}
     .md-section th { background: #d9e6f5; }
     .md-section tr:nth-child(even) { background: #f4f7fa; }
     .md-section b { color: #385; }
@@ -137,7 +136,9 @@
       let ud = document.getElementById('udeluk').value.trim();
       let madpakke = document.getElementById('madpakke').value.trim();
 
+      // Ekstra streng prompt for pænhed!
       let prompt = `Lav en detaljeret madplan for ${v} voksne og ${b} børn for én uge.
+
 Returnér output i nøjagtigt denne markdown-struktur, ingen ekstra forklaringer før eller efter:
 
 ### Madplan
@@ -145,9 +146,13 @@ Returnér output i nøjagtigt denne markdown-struktur, ingen ekstra forklaringer
 |----------|-------------------------------------|------------|---------------|
 | Mandag   | ...                                 | ...        | ...           |
 | Tirsdag  | ...                                 | ...        | ...           |
-| ...      | ...                                 | ...        | ...           |
+| Onsdag   | ...                                 | ...        | ...           |
+| Torsdag  | ...                                 | ...        | ...           |
+| Fredag   | ...                                 | ...        | ...           |
+| Lørdag   | ...                                 | ...        | ...           |
+| Søndag   | ...                                 | ...        | ...           |
 
-*Under hver dagspris i tabellen: Tilføj en forklaring på prisen i en punktopstilling under tabellen.*
+*Umiddelbart under tabellen skal du skrive punktvis forklaring på alle dagspriser (ingen stjerner, kun bindestreger og tal med "kr")*
 
 ### Indkøbsliste
 #### Kød
@@ -161,22 +166,25 @@ Returnér output i nøjagtigt denne markdown-struktur, ingen ekstra forklaringer
 #### Øvrigt
 - ...
 
+*Brug aldrig stjerner, markdown-bold eller andre tegn i indkøbslisten. Kun bindestreger.*
+
 ### Opskrifter
 #### Mandag: [Ret]
-**Ingredienser:**
+Ingredienser:
 - ...
-**Fremgangsmåde:**
+Fremgangsmåde:
 1. ...
 #### Tirsdag: [Ret]
-**Ingredienser:**
+Ingredienser:
 - ...
-**Fremgangsmåde:**
+Fremgangsmåde:
 1. ...
-(osv. for alle dage)
+(osv. for alle dage – ingen udeladte dage, og ingen overspring)
 
 ### Madpakker
 - Rugbrødsmadder med ... til Emma
 - ...
+
 ---
 Krav: 
 - ${kf} kødfrie dage pr. uge
@@ -186,6 +194,7 @@ Krav:
 ${ud ? '- Undgå disse fødevarer: ' + ud : ''}
 ${(parseInt(b) > 0 && madpakke) ? '- Børnenes madpakker skal tage højde for: ' + madpakke : ''}
 Opskrifterne skal være børnevenlige og nemme. Skriv alt på dansk.
+Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter eller rækker.
 `;
 
       try {
@@ -196,10 +205,10 @@ Opskrifterne skal være børnevenlige og nemme. Skriv alt på dansk.
             "Authorization": "Bearer " + apikey
           },
           body: JSON.stringify({
-            model: "gpt-4o", // evt. skift til gpt-4-1106-nano eller anden model her
+            model: "gpt-4o",
             messages: [{ role: "user", content: prompt }],
             temperature: 0.4,
-            max_tokens: 3000
+            max_tokens: 4000
           })
         });
 
@@ -221,36 +230,47 @@ Opskrifterne skal være børnevenlige og nemme. Skriv alt på dansk.
       }
     }
 
-    // Meget robust markdown-til-HTML parser
+    // Markdown parser med ekstra pænhed og fjernelse af stjerner
     function markdownToHtml(md) {
       // Headings
       md = md.replace(/^### (.*)$/gim, '<h2>$1</h2>');
       md = md.replace(/^#### (.*)$/gim, '<h3>$1</h3>');
-      md = md.replace(/^(\*{2}|__)(.*?)\1/g, '<b>$2</b>');
+      // Fjern stjerner og markdown-bold i indkøbsliste og opskrifter
+      md = md.replace(/\*\*(.*?)\*\*/g, '$1');
+      md = md.replace(/^\*+ /gm, '- ');
       // Lists
       md = md.replace(/^- (.*)$/gm, '<li>$1</li>');
-      md = md.replace(/(<li>.*<\/li>)/g, '<ul>$1</ul>');
+      // Fix overlappende lister
+      md = md.replace(/(<li>.*<\/li>)/g, function(list) {
+        if(list.startsWith('<li>')) return '<ul>' + list + '</ul>';
+        return list;
+      });
       // Ordered lists
       md = md.replace(/^\d+\.\s+(.*)$/gm, '<li>$1</li>');
-      md = md.replace(/(<li>.*<\/li>)/g, '<ol>$1</ol>');
+      md = md.replace(/(<li>.*<\/li>)/g, function(list) {
+        if(list.startsWith('<li>')) return '<ol>' + list + '</ol>';
+        return list;
+      });
       // Tables
       md = md.replace(/((?:\|.+?\|[\r\n]+)+)/g, function(table) {
         let rows = table.trim().split('\n').filter(x=>x);
+        // Fjern rækker med tomme felter
+        rows = rows.filter(row => !/^\|[\s\|]*\|$/.test(row));
         let html = '<table>';
         for(let i=0;i<rows.length;i++) {
-          let row = rows[i].split('|').slice(1,-1);
+          let row = rows[i].split('|').slice(1,-1).map(x=>x.trim());
+          // Udelad rækker med alle tomme celler
+          if(row.every(cell => cell === "")) continue;
           html += (i===0 ? '<tr>' : '<tr>') +
-            row.map(cell => (i===0 ? `<th>${cell.trim()}</th>` : `<td>${cell.trim()}</td>`)).join('') +
+            row.map(cell => (i===0 ? `<th>${cell}</th>` : `<td>${cell}</td>`)).join('') +
             '</tr>';
         }
         html += '</table>';
         return html;
       });
-      // Bold/italic
-      md = md.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-      md = md.replace(/\*(.*?)\*/g, '<i>$1</i>');
-      // Code
+      // Code og italics
       md = md.replace(/`([^`]+)`/g, '<code>$1</code>');
+      md = md.replace(/\*(.*?)\*/g, '<i>$1</i>');
       // Newlines
       md = md.replace(/\n{2,}/g, '<br><br>');
       md = md.replace(/\n/g, '<br>');
