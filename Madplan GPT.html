@@ -27,11 +27,11 @@
     #apikey { font-size: 1.04em; letter-spacing: 1px;}
     #loading { display: none; color: #345; font-size: 1.08em; margin-top: 14px;}
 
-    .md-section {background:#f6f9fc;border-radius:9px;padding:18px 18px 6px 18px;margin:18px 0;}
-    .md-section h2, .md-section h3 {background:none;color:#5278b1;margin:12px 0 3px 0; padding:0;}
-    .md-section ul, .md-section ol {margin:0 0 7px 20px;}
-    .md-section li {margin:0 0 2px 0;}
-    .md-section table { width: 100%; border-collapse: collapse; margin: 14px 0 12px 0; font-size: 1rem;}
+    .md-section {background:#f6f9fc;border-radius:9px;padding:12px 18px 7px 18px;margin:13px 0;}
+    .md-section h2, .md-section h3 {background:none;color:#5278b1;margin:8px 0 6px 0; padding:0;}
+    .md-section ul, .md-section ol {margin:0 0 9px 0; padding-left:24px;}
+    .md-section li {margin:0 0 2px 0; padding-left:0;}
+    .md-section table { width: 100%; border-collapse: collapse; margin: 10px 0 8px 0; font-size: 1rem;}
     .md-section th, .md-section td { border: 1px solid #cfddeb; padding: 8px 8px; text-align: left;}
     .md-section th { background: #d9e6f5; }
     .md-section tr:nth-child(even) { background: #f4f7fa; }
@@ -82,7 +82,7 @@
     }
     .collapsible:hover { background: #c6daee; }
     .content {
-      padding: 2px 12px 14px 2px;
+      padding: 2px 12px 10px 2px;
       display: none;
       overflow: hidden;
       border-radius: 0 0 7px 7px;
@@ -91,7 +91,7 @@
     @media (max-width: 700px) {
       .container { padding: 4px; }
       form { padding: 12px 4vw; }
-      .md-section { padding:8px; }
+      .md-section { padding:7px; }
       .md-section .tooltiptext { width:90vw; left:0; transform:none;}
       .collapsible {padding:10px;}
     }
@@ -136,7 +136,7 @@
       <button type="submit">Generér madplan</button>
       <div id="loading">🕐 Madplanen genereres – vent et øjeblik...</div>
     </form>
-    <div id="result" style="margin-top:30px;"></div>
+    <div id="result" style="margin-top:15px;"></div>
     <div class="footer">
       Lavet til danske familier – AI kører kun i din browser.<br>
       <span style="font-size:0.92em;">© Madplans-generator – open source, må frit bruges og ændres</span>
@@ -265,16 +265,21 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
       md = md.replace(/\*\*(.*?)\*\*/g, '$1');
       md = md.replace(/^\*+ /gm, '- ');
       md = md.replace(/^#+$/gm, "");
+      // Konverter punktlister
       md = md.replace(/^- (.*)$/gm, '<li>$1</li>');
+      // Fjern ekstra mellemrum
       md = md.replace(/(<li>.*<\/li>)/g, function(list) {
-        if(list.startsWith('<li>')) return '<ul>' + list + '</ul>';
+        // Konverter alle sammenhængende <li> til én <ul>
+        if(list.startsWith('<li>')) return '<ul style="margin:0 0 9px 0; padding-left:24px;">' + list + '</ul>';
         return list;
       });
-      md = md.replace(/^\d+\.\s+(.*)$/gm, '<li>$1</li>');
-      md = md.replace(/(<li>.*<\/li>)/g, function(list) {
-        if(list.startsWith('<li>')) return '<ol>' + list + '</ol>';
-        return list;
+      // Konverter nummererede lister kun for fremgangsmåde (og ikke ingredienser)
+      // Find "Fremgangsmåde:" og konverter næste numrerede linjer til <ol>
+      md = md.replace(/Fremgangsmåde:\s*((?:\d+\.\s+.*\n?)+)/g, function(_, steps) {
+        const items = steps.trim().split(/\d+\.\s+/).filter(x=>x).map(x=>`<li>${x.trim()}</li>`).join('');
+        return 'Fremgangsmåde:<ol style="margin:0 0 9px 0; padding-left:24px;">' + items + '</ol>';
       });
+      // Konverter eventuelle tabeller
       md = md.replace(/((?:\|.+?\|[\r\n]+)+)/g, function(table) {
         let rows = table.trim().split('\n').filter(x=>x);
         rows = rows.filter(row => !/^\|[\s\|]*\|$/.test(row));
@@ -311,7 +316,7 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
       });
       md = md.replace(/`([^`]+)`/g, '<code>$1</code>');
       md = md.replace(/\*(.*?)\*/g, '<i>$1</i>');
-      md = md.replace(/\n{2,}/g, '<br><br>');
+      md = md.replace(/\n{2,}/g, '<br>');
       md = md.replace(/\n/g, '<br>');
       return md;
     }
@@ -378,17 +383,14 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
         let sectionText = findSection(section.navn);
         let sectionTitle = `<h2>${section.title}</h2>`;
         if (section.navn === 'Madpakker') {
-          // Madpakker vises altid foldet ud, ingen knap
           if (sectionText && sectionText.trim().length > 0) {
             output += `<div class="md-section">${sectionTitle}${markdownToHtml(sectionText.trim())}</div>`;
           } else {
             output += `<div class="md-section">${sectionTitle}<i>Madpakker mangler i AI-svar – prøv igen</i></div>`;
           }
         } else {
-          // Fold-ud/ind
           if (sectionText && sectionText.trim().length > 0) {
             let html = markdownToHtml(sectionText.trim());
-            // Hvis ingen mængder eller fremgangsmåde
             if (section.navn === 'Indkøbsliste' && !/\d/.test(sectionText)) {
               html = `<i>Ingen mængder fundet – prompt evt. GPT tydeligere om mængder</i><br>` + html;
             }
