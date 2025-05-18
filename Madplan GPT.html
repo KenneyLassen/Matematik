@@ -28,7 +28,6 @@
     #apikey { font-size: 1.04em; letter-spacing: 1px;}
     #loading { display: none; color: #345; font-size: 1.08em; margin-top: 14px;}
 
-    /* Markdown/AI-output styling */
     .md-section {background:#f6f9fc;border-radius:9px;padding:20px 20px 16px 20px;margin:18px 0;}
     .md-section h2, .md-section h3 {background:none;color:#5278b1;margin:18px 0 5px 0; padding:0;}
     .md-section ul, .md-section ol {margin:0 0 12px 20px;}
@@ -233,14 +232,15 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
       }
     }
 
-    // Markdown parser med tooltip på dagspris
+    // Markdown parser med ekstra filtrering og tooltip på dagspris
     function markdownToHtml(md) {
       // Headings
       md = md.replace(/^### (.*)$/gim, '<h2>$1</h2>');
       md = md.replace(/^#### (.*)$/gim, '<h3>$1</h3>');
-      // Fjern stjerner og markdown-bold i indkøbsliste og opskrifter
+      // Fjern stjerner, markdown-bold og overflødige #
       md = md.replace(/\*\*(.*?)\*\*/g, '$1');
       md = md.replace(/^\*+ /gm, '- ');
+      md = md.replace(/^#+$/gm, "");
       // Lists
       md = md.replace(/^- (.*)$/gm, '<li>$1</li>');
       // Fix overlappende lister
@@ -267,11 +267,10 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
           if(i === 0) {
             html += '<tr>' + row.map(cell => `<th>${cell}</th>`).join('') + '</tr>';
           } else {
-            // Find pris og evt. forklaring i sidste kolonne
+            // Tooltip på dagspris hvis forklaring i parentes/[]
             let prisCell = row[3];
             let pris = prisCell;
             let forklaring = "";
-            // Find parentes eller [] eller lignende
             let m = prisCell.match(/^(\d+)\s*(?:kr)?\s*(?:[\(\[](.+)[\)\]])?/i);
             if (m) {
               pris = (m[1] || "") + " kr";
@@ -303,14 +302,28 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
     }
 
     function formatMadplanOutput(text) {
-      // Opdel i sektioner
-      const sections = ['Madplan', 'Indkøbsliste', 'Opskrifter', 'Madpakker'];
-      let output = '';
+      // Vis kun tabellen fra Madplan-sektionen, alt andet (forklaringer, # mm.) ignoreres!
+      let madplanMatch = text.match(/### Madplan[\s\S]+?(?=### |$)/i);
+      let madplanHtml = "";
+      if (madplanMatch) {
+        // Find kun tabellen
+        let tableMatch = madplanMatch[0].match(/((?:\|.+?\|[\r\n]+)+)/);
+        if (tableMatch) {
+          madplanHtml = `<div class="md-section">${markdownToHtml(tableMatch[0])}</div>`;
+        }
+      }
+      // Vis indkøbsliste, opskrifter, madpakker – rens for # og tal-lister
+      const sections = ['Indkøbsliste', 'Opskrifter', 'Madpakker'];
+      let output = madplanHtml;
       sections.forEach(section => {
         let reg = new RegExp(`### ${section}[\\s\\S]+?(?=### |$)`, 'i');
         let match = text.match(reg);
         if (match) {
-          output += `<div class="md-section">${markdownToHtml(match[0].replace(`### ${section}`, '').trim())}</div>`;
+          let cleaned = match[0]
+            .replace(/^#+$/gm, "")
+            .replace(/^\d+\..+/gm, "")
+            .replace(/^\s*$/gm, "");
+          output += `<div class="md-section">${markdownToHtml(cleaned.replace(`### ${section}`, '').trim())}</div>`;
         }
       });
       return output;
