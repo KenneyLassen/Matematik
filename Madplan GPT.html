@@ -233,27 +233,21 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
     }
 
     function markdownToHtml(md) {
-      // Headings
       md = md.replace(/^### (.*)$/gim, '<h2>$1</h2>');
       md = md.replace(/^#### (.*)$/gim, '<h3>$1</h3>');
-      // Fjern stjerner, markdown-bold og overflødige #
       md = md.replace(/\*\*(.*?)\*\*/g, '$1');
       md = md.replace(/^\*+ /gm, '- ');
       md = md.replace(/^#+$/gm, "");
-      // Lists
       md = md.replace(/^- (.*)$/gm, '<li>$1</li>');
-      // Fix overlappende lister
       md = md.replace(/(<li>.*<\/li>)/g, function(list) {
         if(list.startsWith('<li>')) return '<ul>' + list + '</ul>';
         return list;
       });
-      // Ordered lists
       md = md.replace(/^\d+\.\s+(.*)$/gm, '<li>$1</li>');
       md = md.replace(/(<li>.*<\/li>)/g, function(list) {
         if(list.startsWith('<li>')) return '<ol>' + list + '</ol>';
         return list;
       });
-      // Tables med tooltip på dagspris
       md = md.replace(/((?:\|.+?\|[\r\n]+)+)/g, function(table) {
         let rows = table.trim().split('\n').filter(x=>x);
         rows = rows.filter(row => !/^\|[\s\|]*\|$/.test(row));
@@ -294,70 +288,67 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
       md = md.replace(/\n/g, '<br>');
       return md;
     }
-  // Robust section extraction (tillader alle overskriftsniveauer + linjer alene med sektionstitel)
-  function findSection(name) {
-    // Find med evt. 0-3 #, evt. ekstra mellemrum, evt. kolon efter navnet
-    let reg = new RegExp(`(^|\\n)\\s{0,3}#{0,3}\\s*${name}\\s*:?(\\n|$)`, 'i');
-    let start = text.search(reg);
-    if (start === -1) return null;
-    // Find hvor næste sektion starter
-    let nextReg = new RegExp(`(^|\\n)\\s{0,3}#{0,3}\\s*(Madplan|Indkøbsliste|Opskrifter|Madpakker)\\s*:?(\\n|$)`, 'ig');
-    nextReg.lastIndex = start + 2;
-    let next = text.length;
-    let m;
-    while ((m = nextReg.exec(text))) {
-      if (m.index > start) {
-        next = m.index;
-        break;
-      }
-    }
-    return text.substring(start, next).replace(reg, "");
-  }
 
-  // Find tabel
-  let madplan = findSection("Madplan");
-  let madplanHtml = "";
-  if (madplan) {
-    // Saml evt. dage under tabellen ind i tabellen (samme som før)
-    let tableMatch = madplan.match(/((?:\|.+?\|[\r\n]+)+)/);
-    let tableText = tableMatch ? tableMatch[0] : "";
-    let dage = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"];
-    let ekstraRows = [];
-    let efterTabel = madplan.replace(tableText, "");
-    dage.forEach(dag => {
-      let regex = new RegExp(`${dag}\\s*\\|\\s*([^|\\n]*)\\|\\s*([^|\\n]*)\\|\\s*([^|\\n]*)`, "i");
-      let dagMatch = efterTabel.match(regex);
-      if (dagMatch) {
-        ekstraRows.push(`| ${dag} | ${dagMatch[1].trim()} | ${dagMatch[2].trim()} | ${dagMatch[3].trim()} |`);
+    function formatMadplanOutput(text) {
+      // Robust section extraction (tillader alle overskriftsniveauer + linjer alene med sektionstitel)
+      function findSection(name) {
+        let reg = new RegExp(`(^|\\n)\\s{0,3}#{0,3}\\s*${name}\\s*:?(\\n|$)`, 'i');
+        let start = text.search(reg);
+        if (start === -1) return null;
+        let nextReg = new RegExp(`(^|\\n)\\s{0,3}#{0,3}\\s*(Madplan|Indkøbsliste|Opskrifter|Madpakker)\\s*:?(\\n|$)`, 'ig');
+        nextReg.lastIndex = start + 2;
+        let next = text.length;
+        let m;
+        while ((m = nextReg.exec(text))) {
+          if (m.index > start) {
+            next = m.index;
+            break;
+          }
+        }
+        return text.substring(start, next).replace(reg, "");
       }
-    });
-    if (tableText && ekstraRows.length > 0) {
-      let lines = tableText.split("\n");
-      if (lines.length > 2) {
-        lines = lines.slice(0, -1).concat(ekstraRows, [lines[lines.length-1]]);
-        tableText = lines.join("\n");
-      }
-    }
-    madplanHtml = tableText ? `<div class="md-section">${markdownToHtml(tableText)}</div>` : "";
-  }
 
-  // Sektioner: Indkøbsliste, Opskrifter, Madpakker
-  const sections = ['Indkøbsliste', 'Opskrifter', 'Madpakker'];
-  let output = madplanHtml;
-  sections.forEach(section => {
-    let sectionText = findSection(section);
-    if (sectionText && sectionText.trim().length > 0) {
-      let cleaned = sectionText
-        .replace(/^#+$/gm, "")
-        .replace(/^\d+\..+/gm, "")
-        .replace(/^\s*$/gm, "");
-      output += `<div class="md-section">${markdownToHtml(cleaned.trim())}</div>`;
-    } else {
-      output += `<div class="md-section"><i>${section} mangler i AI-svar – prøv at trykke "Generér madplan" igen</i></div>`;
+      // Find tabel
+      let madplan = findSection("Madplan");
+      let madplanHtml = "";
+      if (madplan) {
+        let tableMatch = madplan.match(/((?:\|.+?\|[\r\n]+)+)/);
+        let tableText = tableMatch ? tableMatch[0] : "";
+        let dage = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"];
+        let ekstraRows = [];
+        let efterTabel = madplan.replace(tableText, "");
+        dage.forEach(dag => {
+          let regex = new RegExp(`${dag}\\s*\\|\\s*([^|\\n]*)\\|\\s*([^|\\n]*)\\|\\s*([^|\\n]*)`, "i");
+          let dagMatch = efterTabel.match(regex);
+          if (dagMatch) {
+            ekstraRows.push(`| ${dag} | ${dagMatch[1].trim()} | ${dagMatch[2].trim()} | ${dagMatch[3].trim()} |`);
+          }
+        });
+        if (tableText && ekstraRows.length > 0) {
+          let lines = tableText.split("\n");
+          if (lines.length > 2) {
+            lines = lines.slice(0, -1).concat(ekstraRows, [lines[lines.length-1]]);
+            tableText = lines.join("\n");
+          }
+        }
+        madplanHtml = tableText ? `<div class="md-section">${markdownToHtml(tableText)}</div>` : "";
+      }
+      const sections = ['Indkøbsliste', 'Opskrifter', 'Madpakker'];
+      let output = madplanHtml;
+      sections.forEach(section => {
+        let sectionText = findSection(section);
+        if (sectionText && sectionText.trim().length > 0) {
+          let cleaned = sectionText
+            .replace(/^#+$/gm, "")
+            .replace(/^\d+\..+/gm, "")
+            .replace(/^\s*$/gm, "");
+          output += `<div class="md-section">${markdownToHtml(cleaned.trim())}</div>`;
+        } else {
+          output += `<div class="md-section"><i>${section} mangler i AI-svar – prøv at trykke "Generér madplan" igen</i></div>`;
+        }
+      });
+      return output;
     }
-  });
-  return output;
-}
   </script>
 </body>
 </html>
