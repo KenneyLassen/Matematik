@@ -2,7 +2,7 @@
 <html lang="da">
 <head>
   <meta charset="UTF-8">
-  <title>Madplan GPT – Avanceret (AI)</title>
+  <title>Madplan GPT – GPT-4.1 (AI)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body { font-family: Arial, sans-serif; margin: 0; background: #f7fafb; color: #21242b;}
@@ -74,7 +74,7 @@
   </style>
 </head>
 <body>
-  <h1>Madplan GPT – Avanceret (AI)</h1>
+  <h1>Madplan GPT – GPT-4.1 (AI)</h1>
   <div class="container">
     <div id="apikeybox">
       <label for="apikey">Din <b>OpenAI API-nøgle</b> (del aldrig denne med andre!)</label>
@@ -136,7 +136,6 @@
       let ud = document.getElementById('udeluk').value.trim();
       let madpakke = document.getElementById('madpakke').value.trim();
 
-      // Ekstra streng prompt for pænhed!
       let prompt = `Lav en detaljeret madplan for ${v} voksne og ${b} børn for én uge.
 
 Returnér output i nøjagtigt denne markdown-struktur, ingen ekstra forklaringer før eller efter:
@@ -152,7 +151,11 @@ Returnér output i nøjagtigt denne markdown-struktur, ingen ekstra forklaringer
 | Lørdag   | ...                                 | ...        | ...           |
 | Søndag   | ...                                 | ...        | ...           |
 
-*Umiddelbart under tabellen skal du skrive punktvis forklaring på alle dagspriser (ingen stjerner, kun bindestreger og tal med "kr")*
+**VIGTIGT:** I kolonnen “Dagspris (kr)” skal du skrive forklaringen i samme celle, adskilt med parentes eller kantede parenteser, fx:
+210 (Kød: 60 kr, Mejeri: 30 kr, Grønt: 40 kr, Kolonial: 40 kr, Øvrigt: 40 kr)
+eller
+210 kr [Kød: 60 kr, ...]
+Skriv *aldrig* en “Forklaring på dagspriser” under tabellen. Forklaring må kun stå i selve cellen.
 
 ### Indkøbsliste
 #### Kød
@@ -166,7 +169,7 @@ Returnér output i nøjagtigt denne markdown-struktur, ingen ekstra forklaringer
 #### Øvrigt
 - ...
 
-*Brug aldrig stjerner, markdown-bold eller andre tegn i indkøbslisten. Kun bindestreger.*
+Brug aldrig stjerner, markdown-bold eller andre tegn i indkøbslisten. Kun bindestreger.
 
 ### Opskrifter
 #### Mandag: [Ret]
@@ -205,7 +208,7 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
             "Authorization": "Bearer " + apikey
           },
           body: JSON.stringify({
-            model: "gpt-4o",
+            model: "gpt-4-1106-preview",
             messages: [{ role: "user", content: prompt }],
             temperature: 0.4,
             max_tokens: 4000
@@ -230,7 +233,7 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
       }
     }
 
-    // Markdown parser med ekstra pænhed og fjernelse af stjerner
+    // Markdown parser med tooltip på dagspris
     function markdownToHtml(md) {
       // Headings
       md = md.replace(/^### (.*)$/gim, '<h2>$1</h2>');
@@ -251,7 +254,7 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
         if(list.startsWith('<li>')) return '<ol>' + list + '</ol>';
         return list;
       });
-      // Tables
+      // Tables med tooltip på dagspris
       md = md.replace(/((?:\|.+?\|[\r\n]+)+)/g, function(table) {
         let rows = table.trim().split('\n').filter(x=>x);
         // Fjern rækker med tomme felter
@@ -261,9 +264,31 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
           let row = rows[i].split('|').slice(1,-1).map(x=>x.trim());
           // Udelad rækker med alle tomme celler
           if(row.every(cell => cell === "")) continue;
-          html += (i===0 ? '<tr>' : '<tr>') +
-            row.map(cell => (i===0 ? `<th>${cell}</th>` : `<td>${cell}</td>`)).join('') +
-            '</tr>';
+          if(i === 0) {
+            html += '<tr>' + row.map(cell => `<th>${cell}</th>`).join('') + '</tr>';
+          } else {
+            // Find pris og evt. forklaring i sidste kolonne
+            let prisCell = row[3];
+            let pris = prisCell;
+            let forklaring = "";
+            // Find parentes eller [] eller lignende
+            let m = prisCell.match(/^(\d+)\s*(?:kr)?\s*(?:[\(\[](.+)[\)\]])?/i);
+            if (m) {
+              pris = (m[1] || "") + " kr";
+              forklaring = m[2] ? m[2].trim() : "";
+            }
+            if (forklaring) {
+              prisCell = `<span class="tooltip">${pris}<span class="tooltiptext">${forklaring}</span></span>`;
+            } else {
+              prisCell = pris;
+            }
+            html += `<tr>
+              <td>${row[0]}</td>
+              <td>${row[1]}</td>
+              <td>${row[2]}</td>
+              <td>${prisCell}</td>
+            </tr>`;
+          }
         }
         html += '</table>';
         return html;
