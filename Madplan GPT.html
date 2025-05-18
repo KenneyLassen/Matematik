@@ -232,7 +232,6 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
       }
     }
 
-    // Markdown parser med ekstra filtrering og tooltip på dagspris
     function markdownToHtml(md) {
       // Headings
       md = md.replace(/^### (.*)$/gim, '<h2>$1</h2>');
@@ -257,17 +256,14 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
       // Tables med tooltip på dagspris
       md = md.replace(/((?:\|.+?\|[\r\n]+)+)/g, function(table) {
         let rows = table.trim().split('\n').filter(x=>x);
-        // Fjern rækker med tomme felter
         rows = rows.filter(row => !/^\|[\s\|]*\|$/.test(row));
         let html = '<table>';
         for(let i=0;i<rows.length;i++) {
           let row = rows[i].split('|').slice(1,-1).map(x=>x.trim());
-          // Udelad rækker med alle tomme celler
           if(row.every(cell => cell === "")) continue;
           if(i === 0) {
             html += '<tr>' + row.map(cell => `<th>${cell}</th>`).join('') + '</tr>';
           } else {
-            // Tooltip på dagspris hvis forklaring i parentes/[]
             let prisCell = row[3];
             let pris = prisCell;
             let forklaring = "";
@@ -292,27 +288,44 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
         html += '</table>';
         return html;
       });
-      // Code og italics
       md = md.replace(/`([^`]+)`/g, '<code>$1</code>');
       md = md.replace(/\*(.*?)\*/g, '<i>$1</i>');
-      // Newlines
       md = md.replace(/\n{2,}/g, '<br><br>');
       md = md.replace(/\n/g, '<br>');
       return md;
     }
 
     function formatMadplanOutput(text) {
-      // Vis kun tabellen fra Madplan-sektionen, alt andet (forklaringer, # mm.) ignoreres!
+      // Find tabellen
       let madplanMatch = text.match(/### Madplan[\s\S]+?(?=### |$)/i);
       let madplanHtml = "";
+      let dage = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"];
       if (madplanMatch) {
         // Find kun tabellen
         let tableMatch = madplanMatch[0].match(/((?:\|.+?\|[\r\n]+)+)/);
-        if (tableMatch) {
-          madplanHtml = `<div class="md-section">${markdownToHtml(tableMatch[0])}</div>`;
+        let tableText = tableMatch ? tableMatch[0] : "";
+        // Tjek om nogle dage mangler i tabellen men findes under
+        let ekstraRows = [];
+        let efterTabel = madplanMatch[0].replace(tableText, "");
+        dage.forEach(dag => {
+          let regex = new RegExp(`${dag}\\s*\\|\\s*([^|\\n]*)\\|\\s*([^|\\n]*)\\|\\s*([^|\\n]*)`, "i");
+          let dagMatch = efterTabel.match(regex);
+          if (dagMatch) {
+            ekstraRows.push(`| ${dag} | ${dagMatch[1].trim()} | ${dagMatch[2].trim()} | ${dagMatch[3].trim()} |`);
+          }
+        });
+        // Hvis nogen rækker mangler, tilføj dem til tabellen
+        if (tableText && ekstraRows.length > 0) {
+          let lines = tableText.split("\n");
+          // Indsæt før afsluttende linje hvis muligt
+          if (lines.length > 2) {
+            lines = lines.slice(0, -1).concat(ekstraRows, [lines[lines.length-1]]);
+            tableText = lines.join("\n");
+          }
         }
+        madplanHtml = tableText ? `<div class="md-section">${markdownToHtml(tableText)}</div>` : "";
       }
-      // Vis indkøbsliste, opskrifter, madpakker – rens for # og tal-lister
+      // Indkøbsliste, opskrifter, madpakker
       const sections = ['Indkøbsliste', 'Opskrifter', 'Madpakker'];
       let output = madplanHtml;
       sections.forEach(section => {
@@ -324,6 +337,8 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
             .replace(/^\d+\..+/gm, "")
             .replace(/^\s*$/gm, "");
           output += `<div class="md-section">${markdownToHtml(cleaned.replace(`### ${section}`, '').trim())}</div>`;
+        } else {
+          output += `<div class="md-section"><i>${section} mangler i AI-svar – prøv at trykke "Generér madplan" igen</i></div>`;
         }
       });
       return output;
