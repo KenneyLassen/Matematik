@@ -360,11 +360,13 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
           }
         }
         // Her er fixet: Fjern <br> og whitespace i toppen!
-        let madplanHtmlRaw = markdownToHtml(tableText).replace(/^(<br\s*\/?>|\s)+/i, '');
-        madplanHtml = tableText ? `<div class="md-section first"><h2>Madplan</h2>${madplanHtmlRaw}</div>` : "";
-      } else {
-        madplanHtml = `<div class="md-section first"><h2>Madplan</h2><i>Madplan mangler</i></div>`;
-      }
+        let madplanHtmlRaw = markdownToHtml(tableText)
+  .replace(/^(<br\s*\/?>|\s)+/gi, '') // Fjern alle <br> og whitespace i toppen
+  .replace(/(<h2>Madplan<\/h2>)(<br\s*\/?>)+/gi, '$1'); // Fjern alle <br> lige efter overskriften
+madplanHtml = tableText ? `<div class="md-section first"><h2>Madplan</h2>${madplanHtmlRaw}</div>` : "";
+} else {
+  madplanHtml = `<div class="md-section first"><h2>Madplan</h2><i>Madplan mangler</i></div>`;
+}
 
       function wrapCollapsible(title, html, open=false) {
         return `<button class="collapsible"${open?' style="margin-top:16px;"':''}>${title}</button>
