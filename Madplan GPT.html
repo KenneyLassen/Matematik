@@ -26,9 +26,8 @@
     #apikeybox label { margin-top: 0;}
     #apikey { font-size: 1.04em; letter-spacing: 1px;}
     #loading { display: none; color: #345; font-size: 1.08em; margin-top: 14px;}
-
     .md-section {background:#f6f9fc;border-radius:9px;padding:6px 18px 7px 18px;margin:13px 0;}
-    .md-section.first {margin-top:-15px !important; padding-top:0 !important;}
+    .md-section.first {margin-top:0 !important; padding-top:0 !important;}
     .md-section h2, .md-section h3 {background:none;color:#5278b1;margin:8px 0 6px 0; padding:0;}
     .md-section ul, .md-section ol {margin:0 0 9px 0; padding-left:24px;}
     .md-section li {margin:0 0 2px 0; padding-left:0;}
@@ -136,7 +135,7 @@
       <button type="submit">Generér madplan</button>
       <div id="loading">🕐 Madplanen genereres – vent et øjeblik...</div>
     </form>
-    <div id="result" style="margin-top:15px;"></div>
+    <div id="result"></div>
     <div class="footer">
       Lavet til danske familier – AI kører kun i din browser.<br>
       <span style="font-size:0.92em;">© Madplans-generator – open source, må frit bruges og ændres</span>
@@ -259,6 +258,7 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
       }
     }
 
+    // MARKDOWN TIL HTML – uden overflødige <br>
     function markdownToHtml(md) {
       md = md.replace(/^### (.*)$/gim, '<h2>$1</h2>');
       md = md.replace(/^#### (.*)$/gim, '<h3>$1</h3>');
@@ -314,8 +314,11 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
       });
       md = md.replace(/`([^`]+)`/g, '<code>$1</code>');
       md = md.replace(/\*(.*?)\*/g, '<i>$1</i>');
-      md = md.replace(/\n{2,}/g, '<br>');
-      md = md.replace(/\n/g, '<br>');
+      // -- Kun <br> hvor der er flere tomme linjer --
+      md = md.replace(/\n{3,}/g, '<br>');   // 3 eller flere newlines til én <br>
+      md = md.replace(/(\n\s*\n)+/g, '<br>'); // tomme linjer til <br>
+      md = md.replace(/^(<br\s*\/?>|\s)+/gi, ''); // Fjern alle <br> og whitespace i toppen
+      md = md.replace(/(<h2>Madplan<\/h2>)(<br\s*\/?>)+/gi, '$1'); // Fjern <br> lige efter overskriften
       return md;
     }
 
@@ -359,14 +362,11 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
             tableText = lines.join("\n");
           }
         }
-        // Her er fixet: Fjern <br> og whitespace i toppen!
-        let madplanHtmlRaw = markdownToHtml(tableText)
-  .replace(/^(<br\s*\/?>|\s)+/gi, '') // Fjern alle <br> og whitespace i toppen
-  .replace(/(<h2>Madplan<\/h2>)(<br\s*\/?>)+/gi, '$1'); // Fjern alle <br> lige efter overskriften
-madplanHtml = tableText ? `<div class="md-section first"><h2>Madplan</h2>${madplanHtmlRaw}</div>` : "";
-} else {
-  madplanHtml = `<div class="md-section first"><h2>Madplan</h2><i>Madplan mangler</i></div>`;
-}
+        let madplanHtmlRaw = markdownToHtml(tableText);
+        madplanHtml = tableText ? `<div class="md-section first"><h2>Madplan</h2>${madplanHtmlRaw}</div>` : "";
+      } else {
+        madplanHtml = `<div class="md-section first"><h2>Madplan</h2><i>Madplan mangler</i></div>`;
+      }
 
       function wrapCollapsible(title, html, open=false) {
         return `<button class="collapsible"${open?' style="margin-top:16px;"':''}>${title}</button>
