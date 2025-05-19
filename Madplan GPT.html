@@ -7,7 +7,7 @@
   <style>
     body { font-family: Arial, sans-serif; margin: 0; background: #f7fafb; color: #21242b;}
     h1 { background: #5278b1; color: #fff; margin: 0; padding: 20px 10px 10px 10px; }
-    .container { max-width: 900px; margin: auto; padding: 10px 10px 40px 10px; }
+    .container { max-width: 900px; margin: auto; padding: 10px 10px 10px 10px; }
     form { background: #fff; border-radius: 12px; box-shadow: 0 4px 22px #0001; padding: 32px 24px 20px 24px; margin-bottom: 24px; }
     label { display: block; margin-top: 17px; margin-bottom: 4px; font-weight: bold; font-size: 1.05em;}
     input[type="number"], input[type="text"], select, textarea {
@@ -28,6 +28,7 @@
     #loading { display: none; color: #345; font-size: 1.08em; margin-top: 14px;}
 
     .md-section {background:#f6f9fc;border-radius:9px;padding:12px 18px 7px 18px;margin:13px 0;}
+    .md-section.first {margin-top:0 !important; padding-top:0 !important;}
     .md-section h2, .md-section h3 {background:none;color:#5278b1;margin:8px 0 6px 0; padding:0;}
     .md-section ul, .md-section ol {margin:0 0 9px 0; padding-left:24px;}
     .md-section li {margin:0 0 2px 0; padding-left:0;}
@@ -63,7 +64,6 @@
       opacity: 0;
       transition: opacity 0.2s;
     }
-    /* Collapsible fold-ud/ind */
     .collapsible {
       background: #d9e6f5;
       color: #23456d;
@@ -269,12 +269,10 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
       md = md.replace(/^- (.*)$/gm, '<li>$1</li>');
       // Fjern ekstra mellemrum
       md = md.replace(/(<li>.*<\/li>)/g, function(list) {
-        // Konverter alle sammenhængende <li> til én <ul>
         if(list.startsWith('<li>')) return '<ul style="margin:0 0 9px 0; padding-left:24px;">' + list + '</ul>';
         return list;
       });
       // Konverter nummererede lister kun for fremgangsmåde (og ikke ingredienser)
-      // Find "Fremgangsmåde:" og konverter næste numrerede linjer til <ol>
       md = md.replace(/Fremgangsmåde:\s*((?:\d+\.\s+.*\n?)+)/g, function(_, steps) {
         const items = steps.trim().split(/\d+\.\s+/).filter(x=>x).map(x=>`<li>${x.trim()}</li>`).join('');
         return 'Fremgangsmåde:<ol style="margin:0 0 9px 0; padding-left:24px;">' + items + '</ol>';
@@ -322,7 +320,6 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
     }
 
     function formatMadplanOutput(text) {
-      // Helper to find all section content, even with variant headings
       function findSection(name) {
         let reg = new RegExp(`(^|\\n)\\s{0,3}#{0,3}\\s*${name}\\s*:?(\\n|$)`, 'i');
         let start = text.search(reg);
@@ -340,7 +337,6 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
         return text.substring(start, next).replace(reg, "");
       }
 
-      // MADPLAN
       let madplan = findSection("Madplan");
       let madplanHtml = "";
       if (madplan) {
@@ -363,12 +359,11 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
             tableText = lines.join("\n");
           }
         }
-        madplanHtml = tableText ? `<div class="md-section"><h2>Madplan</h2>${markdownToHtml(tableText)}</div>` : "";
+        madplanHtml = tableText ? `<div class="md-section first"><h2>Madplan</h2>${markdownToHtml(tableText)}</div>` : "";
       } else {
-        madplanHtml = `<div class="md-section"><h2>Madplan</h2><i>Madplan mangler</i></div>`;
+        madplanHtml = `<div class="md-section first"><h2>Madplan</h2><i>Madplan mangler</i></div>`;
       }
 
-      // INDKØBSLISTE og OPSKRIFTER med fold-ud
       function wrapCollapsible(title, html, open=false) {
         return `<button class="collapsible"${open?' style="margin-top:16px;"':''}>${title}</button>
           <div class="content"${open?' style="display:block"':''}>${html}</div>`;
@@ -406,7 +401,6 @@ Alle rækker og felter i madplan-tabellen skal udfyldes – ingen tomme felter e
       return output;
     }
 
-    // Fold-ud/ind-funktion
     function setupCollapsible() {
       var coll = document.getElementsByClassName("collapsible");
       for (let i = 0; i < coll.length; i++) {
